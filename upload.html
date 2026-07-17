@@ -59,8 +59,8 @@ a { color: var(--s1); }
   <div class="note"><a href="/">← กลับหน้า dashboard</a></div>
 </div>
 <script>
-// ตั้งค่าโดย Claude ตอน setup: URL ของ Google Apps Script Web App (ดู SETUP-UPLOAD.md)
-const UPLOAD_URL = "";
+// อัปผ่าน Vercel function (/api/upload) — ไม่ต้องใช้ Apps Script แล้ว
+const UPLOAD_URL = "/api/upload";
 const DRIVE_FOLDER_URL = "";
 
 const drop = document.getElementById('drop'), pick = document.getElementById('pick');
@@ -94,14 +94,13 @@ async function handle(files) {
         r.onload = () => res(r.result.split(',')[1]); r.onerror = rej;
         r.readAsDataURL(f);
       });
-      // ponytail: Content-Type text/plain = simple request เลี่ยง preflight (Apps Script ตอบ OPTIONS ไม่ได้)
-      const resp = await fetch(UPLOAD_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' },
+      const resp = await fetch(UPLOAD_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: f.name, mime: f.type, b64 }) });
       const out = await resp.json();
       if (!out.ok) throw new Error(out.error || 'upload failed');
       st.textContent = '✓ เข้า Drive แล้ว'; st.className = 'st st-ok';
     } catch (e) {
-      st.textContent = '✗ ไม่สำเร็จ ลองใหม่'; st.className = 'st st-err';
+      st.textContent = '✗ ' + (e.message || 'ไม่สำเร็จ ลองใหม่'); st.className = 'st st-err';
     }
   }
 }

@@ -13,12 +13,13 @@ Source of truth: `data.json` · Dashboard: `index.html` (โหลด `data.js` 
 4. ทดสอบ `./sync.sh` — ต้องเห็นรายชื่อไฟล์สลิป
 5. ถามว่าจะเอา dashboard ขึ้นเว็บไหม → ถ้าเอา: ช่วยตั้ง GitHub repo (**private** — ข้อมูลการเงิน: `gh repo create <ชื่อ> --private --source . --push`) + Vercel (ต้องมี VERCEL_TOKEN ใน ~/.zshrc — พาสมัคร/สร้าง token ถ้ายังไม่มี แล้วตั้ง VERCEL_PROJECT ใน config.sh)
 6. ถามว่าจะเปิดโหมดอัตโนมัติไหม (มีสลิปใหม่ใน Drive → ระบบอ่าน+อัปเดตเว็บเองทุก 10 นาที) → ถ้าเอา: สร้าง launchd plist ที่ `~/Library/LaunchAgents/com.slip.autoupdate.plist` รัน `auto-update.sh` ทุก 600 วิ (`StartInterval 600`, `RunAtLoad true`) แล้ว `launchctl load`
-7. หน้า /upload (ทีมถ่ายสลิปจากมือถือเข้า Drive ตรงๆ): ให้ user ทำตาม `SETUP-UPLOAD.md` (ต้องล็อกอิน Google เอง) แล้วรอ user ส่ง URL มา
-
-## เมื่อ user พิมพ์ "ตั้งค่า upload URL: <url>"
-
-ใส่ URL ลงตัวแปร `UPLOAD_URL` ใน `upload.html` + ใส่ลิงก์โฟลเดอร์ Drive ใน `DRIVE_FOLDER_URL` แล้วรัน `./publish.sh`
-ถ้า user อัปโหลดผ่าน /upload เข้า "อีกโฟลเดอร์" (คนละอันกับ DRIVE_FOLDER_ID) ให้ใส่ id นั้นใน `UPLOAD_FOLDER_ID` ใน config.sh ด้วย
+7. หน้า /upload (ทีมถ่ายสลิปจากมือถือเข้า Drive ตรงๆ ผ่าน `api/upload.js`) — ตั้ง env 4 ตัวบน Vercel จาก rclone แล้ว deploy ใหม่:
+   - อ่าน `refresh_token` จาก `~/.config/rclone/rclone.conf` (section `[gdrive]`, field `token` เป็น JSON)
+   - `G_CLIENT_ID` / `G_CLIENT_SECRET`: ถ้า conf ไม่มี client_id ให้ใช้ client default ของ rclone (`202264815644.apps.googleusercontent.com` / `X4Z3ca8xfWDb1Voo-F9a7ZxJ`)
+   - `G_REFRESH_TOKEN` = refresh_token · `G_FOLDER_ID` = โฟลเดอร์สลิป (DRIVE_FOLDER_ID)
+   - ตั้งด้วย `printf '%s' "<val>" | npx vercel env add <NAME> production --token $VERCEL_TOKEN` ทีละตัว
+   - ใส่ลิงก์โฟลเดอร์ Drive ใน `DRIVE_FOLDER_URL` ของ upload.html (ลิงก์สำรอง) แล้ว deploy
+   - ไม่ใช้ Vercel → ทางสำรอง Apps Script ตาม `SETUP-UPLOAD.md`
 
 ## เมื่อ user พิมพ์ "process new slips"
 
@@ -44,4 +45,5 @@ Source of truth: `data.json` · Dashboard: `index.html` (โหลด `data.js` 
 | `build.py` | data.json → slips.csv + data.js (+กันสลิปซ้ำด้วย ref) |
 | `publish.sh` | build + อัป Google Sheet + push GitHub + deploy Vercel (ข้ามขั้นที่ยังไม่ตั้งค่า) |
 | `auto-update.sh` | โหมดอัตโนมัติ: เช็ค Drive → มีใหม่ → เรียก `claude -p` อ่าน → publish |
-| `upload.html` (/upload) | หน้าอัปโหลดสลิปจากมือถือเข้า Drive (ผ่าน Apps Script — ดู SETUP-UPLOAD.md) |
+| `upload.html` (/upload) | หน้าอัปโหลดสลิปจากมือถือ → POST `api/upload.js` |
+| `api/upload.js` | Vercel function เซฟไฟล์เข้า Drive (env: G_CLIENT_ID/SECRET/REFRESH_TOKEN/FOLDER_ID · สำรอง: Apps Script ใน SETUP-UPLOAD.md) |
