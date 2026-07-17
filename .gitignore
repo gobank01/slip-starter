@@ -1,3 +1,4 @@
 .vercel
 auto-update.log
 .DS_Store
+.env*
