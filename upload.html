@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>อัปโหลดสลิป</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --ring: rgba(11,11,11,.10); --s1: #2a78d6; --good: #0ca30c; --bad: #d03b3b;
+}
+@media (prefers-color-scheme: dark) {
+  :root { color-scheme: dark; --page: #0d0d0d; --surface: #1a1a19; --ink: #fff; --ink-2: #c3c2b7;
+          --muted: #898781; --ring: rgba(255,255,255,.10); --s1: #3987e5; }
+}
+* { box-sizing: border-box; margin: 0; }
+body { background: var(--page); color: var(--ink); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; padding: 28px 16px 64px; }
+.wrap { max-width: 560px; margin: 0 auto; display: grid; gap: 14px; }
+h1 { font-size: 20px; }
+.sub { color: var(--ink-2); font-size: 14px; }
+.card { background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; padding: 18px 20px; }
+#drop { border: 2px dashed var(--ring); border-radius: 12px; padding: 40px 20px; text-align: center; cursor: pointer; }
+#drop.on { border-color: var(--s1); background: color-mix(in srgb, var(--s1) 6%, transparent); }
+#drop .big { font-size: 44px; }
+#drop .t { font-weight: 650; margin-top: 6px; }
+#drop .d { color: var(--muted); font-size: 13px; margin-top: 2px; }
+.item { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--ring); font-size: 14px; }
+.item:last-child { border-bottom: 0; }
+.item img { width: 42px; height: 42px; object-fit: cover; border-radius: 8px; }
+.item .n { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-ok { color: var(--good); } .st-err { color: var(--bad); } .st-up { color: var(--muted); }
+.note { font-size: 13.5px; color: var(--ink-2); }
+a { color: var(--s1); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div>
+    <h1>📤 อัปโหลดสลิป</h1>
+    <div class="sub">ถ่ายรูป/เลือกสลิป → เข้าโฟลเดอร์ Drive อัตโนมัติ → ระบบอ่านเองภายใน ~10 นาที</div>
+  </div>
+
+  <div id="drop" class="card">
+    <div class="big">🧾</div>
+    <div class="t">แตะเพื่อถ่ายรูป / เลือกสลิป</div>
+    <div class="d">เลือกได้ทีละหลายใบ · หรือลากไฟล์มาวางตรงนี้</div>
+  </div>
+  <input type="file" id="pick" accept="image/*" multiple hidden>
+
+  <div class="card" id="listCard" hidden><div id="list"></div></div>
+
+  <div class="card note" id="setupNote" hidden>
+    ⚠️ หน้านี้ยังไม่ได้ตั้งค่า UPLOAD_URL (Apps Script) — ดูวิธีใน <b>SETUP-UPLOAD.md</b> ของโปรเจค
+    หรืออัปโหลดตรงที่ <a id="driveLink" target="_blank">โฟลเดอร์ Google Drive</a> ไปก่อน
+  </div>
+
+  <div class="note"><a href="/">← กลับหน้า dashboard</a></div>
+</div>
+<script>
+// ตั้งค่าโดย Claude ตอน setup: URL ของ Google Apps Script Web App (ดู SETUP-UPLOAD.md)
+const UPLOAD_URL = "";
+const DRIVE_FOLDER_URL = "";
+
+const drop = document.getElementById('drop'), pick = document.getElementById('pick');
+const list = document.getElementById('list'), listCard = document.getElementById('listCard');
+if (!UPLOAD_URL) {
+  document.getElementById('setupNote').hidden = false;
+  const a = document.getElementById('driveLink');
+  if (DRIVE_FOLDER_URL) a.href = DRIVE_FOLDER_URL; else a.removeAttribute('href');
+}
+drop.addEventListener('click', () => pick.click());
+pick.addEventListener('change', () => handle([...pick.files]));
+['dragover','dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => {
+  e.preventDefault();
+  drop.classList.toggle('on', ev === 'dragover');
+  if (ev === 'drop') handle([...e.dataTransfer.files].filter(f => f.type.startsWith('image/')));
+}));
+
+async function handle(files) {
+  if (!files.length) return;
+  listCard.hidden = false;
+  for (const f of files) {
+    const row = document.createElement('div');
+    row.className = 'item';
+    row.innerHTML = `<img src="${URL.createObjectURL(f)}"><div class="n">${f.name}</div><div class="st st-up">กำลังอัป…</div>`;
+    list.prepend(row);
+    const st = row.querySelector('.st');
+    if (!UPLOAD_URL) { st.textContent = 'ยังไม่ตั้งค่า UPLOAD_URL'; st.className = 'st st-err'; continue; }
+    try {
+      const b64 = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(r.result.split(',')[1]); r.onerror = rej;
+        r.readAsDataURL(f);
+      });
+      // ponytail: Content-Type text/plain = simple request เลี่ยง preflight (Apps Script ตอบ OPTIONS ไม่ได้)
+      const resp = await fetch(UPLOAD_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ name: f.name, mime: f.type, b64 }) });
+      const out = await resp.json();
+      if (!out.ok) throw new Error(out.error || 'upload failed');
+      st.textContent = '✓ เข้า Drive แล้ว'; st.className = 'st st-ok';
+    } catch (e) {
+      st.textContent = '✗ ไม่สำเร็จ ลองใหม่'; st.className = 'st st-err';
+    }
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>รายจ่ายบริษัท — สลิป Dashboard</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb;
+  --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --baseline: #c3c2b7; --ring: rgba(11,11,11,.10);
+  --s1: #2a78d6; --s1-soft: #cde2fb;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19;
+    --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --baseline: #383835; --ring: rgba(255,255,255,.10);
+    --s1: #3987e5; --s1-soft: #184f95;
+  }
+}
+* { box-sizing: border-box; margin: 0; }
+body { background: var(--page); color: var(--ink); font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; padding: 28px 16px 64px; }
+.wrap { max-width: 1100px; margin: 0 auto; display: grid; gap: 16px; }
+h1 { font-size: 22px; }
+.sub { color: var(--ink-2); font-size: 14px; margin-top: 2px; }
+.card { background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; padding: 18px 20px; }
+.card h2 { font-size: 15px; margin-bottom: 14px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.tile .k { color: var(--ink-2); font-size: 13px; }
+.tile .v { font-size: 28px; font-weight: 650; margin-top: 4px; }
+.tile .d { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+/* horizontal bars */
+.brow { display: grid; grid-template-columns: minmax(120px, 220px) 1fr 110px; gap: 10px; align-items: center; padding: 5px 6px; cursor: pointer; border-radius: 6px; }
+.brow:hover { background: color-mix(in srgb, var(--s1) 8%, transparent); }
+.brow.active { background: color-mix(in srgb, var(--s1) 14%, transparent); }
+.brow.active .lbl { color: var(--ink); font-weight: 600; }
+.brow .lbl { font-size: 13.5px; color: var(--ink-2); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.brow .track { height: 18px; position: relative; border-left: 2px solid var(--baseline); }
+.brow .bar { height: 100%; background: var(--s1); border-radius: 0 4px 4px 0; min-width: 2px; }
+.brow .val { font-size: 13px; font-variant-numeric: tabular-nums; }
+.hint { color: var(--muted); font-size: 12px; margin-top: 8px; }
+/* daily columns */
+.cols { display: flex; align-items: flex-end; gap: 8px; height: 170px; border-bottom: 2px solid var(--baseline); padding: 0 4px; }
+.cols .day { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; min-width: 0; }
+.cols .col { width: 100%; max-width: 42px; background: var(--s1); border-radius: 4px 4px 0 0; min-height: 0; }
+.cols .col.zero { background: transparent; }
+.cols .top { font-size: 11.5px; color: var(--ink-2); margin-bottom: 3px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.xlab { display: flex; gap: 8px; padding: 6px 4px 0; }
+.xlab span { flex: 1; text-align: center; font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+/* table */
+.tbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.tbar h2 { margin-bottom: 0; }
+select { font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 1px solid var(--ring); border-radius: 8px; padding: 4px 8px; }
+.tblwrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th { text-align: left; color: var(--muted); font-weight: 500; font-size: 12.5px; border-bottom: 1px solid var(--grid); padding: 7px 10px; white-space: nowrap; }
+th.sortable { cursor: pointer; user-select: none; }
+th.sortable:hover { color: var(--ink); }
+th .arr { font-size: 9px; }
+td { border-bottom: 1px solid var(--grid); padding: 8px 10px; vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.nowrap { white-space: nowrap; }
+tfoot td { font-weight: 650; border-top: 2px solid var(--baseline); border-bottom: 0; }
+.chip { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 12px; background: var(--s1-soft); }
+.chip.ovh { background: transparent; border: 1px solid var(--ring); color: var(--muted); }
+a { color: var(--s1); }
+#tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--page); font-size: 12.5px; padding: 5px 9px; border-radius: 6px; opacity: 0; transition: opacity .08s; z-index: 9; white-space: nowrap; }
+footer { color: var(--muted); font-size: 12.5px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div>
+    <h1>💸 รายจ่ายบริษัท</h1>
+    <div class="sub" id="range"></div>
+  </div>
+
+  <div class="tiles" id="tiles"></div>
+
+  <div class="card">
+    <h2>รายจ่ายตามหมวด (จากบันทึกกำกับสลิป · ไม่มีบันทึก = ovh)</h2>
+    <div id="bycat"></div>
+    <div class="hint">คลิกหมวดเพื่อกรองตารางด้านล่าง · คลิกซ้ำเพื่อยกเลิก</div>
+  </div>
+
+  <div class="card">
+    <h2>รายจ่ายรายวัน</h2>
+    <div class="cols" id="bydayCols"></div>
+    <div class="xlab" id="bydayLabs"></div>
+  </div>
+
+  <div class="card">
+    <div class="tbar">
+      <h2>รายการทั้งหมด (<span id="count"></span> สลิป)</h2>
+      <label>หมวด: <select id="catSel"></select></label>
+    </div>
+    <div class="tblwrap">
+      <table>
+        <thead><tr>
+          <th class="sortable" data-k="dt">วันที่<span class="arr"></span></th>
+          <th>เวลา</th>
+          <th class="sortable" data-k="doc">ประเภท<span class="arr"></span></th>
+          <th class="sortable" data-k="cat">หมวด<span class="arr"></span></th>
+          <th class="sortable" data-k="rcpt">ผู้รับ<span class="arr"></span></th>
+          <th class="sortable" data-k="bank">ธนาคาร/ช่องทาง<span class="arr"></span></th>
+          <th class="sortable" data-k="snd">ผู้จ่าย<span class="arr"></span></th>
+          <th class="num sortable" data-k="amt">จำนวนเงิน (฿)<span class="arr"></span></th>
+          <th>เลขที่รายการ</th><th>สลิป</th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+        <tfoot><tr><td colspan="7" id="totLbl">รวม</td><td class="num" id="totRow"></td><td colspan="2"></td></tr></tfoot>
+      </table>
+    </div>
+  </div>
+
+  <footer>อัปเดตจากสลิปใน Google Drive · สร้างโดยระบบอ่านสลิปอัตโนมัติ</footer>
+</div>
+<div id="tip"></div>
+<script src="data.js"></script>
+<script>
+const S = window.SLIPS;
+const fmt = n => n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const MTH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const thDate = iso => { const [y,m,d] = iso.split('-').map(Number); return `${d} ${MTH[m-1]} ${(y+543)%100}`; };
+
+const total = S.reduce((a,r) => a + r.amount_thb, 0);
+const dates = S.map(r => r.date).sort();
+const byCat = {}, byDay = {};
+S.forEach(r => {
+  byCat[r.category] = (byCat[r.category] || 0) + r.amount_thb;
+  byDay[r.date] = byDay[r.date] || { sum: 0, n: 0 };
+  byDay[r.date].sum += r.amount_thb; byDay[r.date].n++;
+});
+const cats = Object.entries(byCat).sort((a,b) => b[1] - a[1]);
+
+document.getElementById('range').textContent =
+  `ช่วง ${thDate(dates[0])} – ${thDate(dates[dates.length-1])} · ${S.length} รายการ`;
+
+// tiles
+const maxCat = cats[0];
+document.getElementById('tiles').innerHTML = [
+  ['ยอดรวมรายจ่าย', '฿' + fmt(total), `${S.length} รายการ`],
+  ['หมวดที่จ่ายมากสุด', maxCat[0], '฿' + fmt(maxCat[1])],
+  ['เฉลี่ยต่อรายการ', '฿' + fmt(total / S.length), ''],
+  ['ไม่มีบันทึกกำกับ (ovh)', '฿' + fmt(byCat['ovh'] || 0), `${S.filter(r => r.category === 'ovh').length} รายการ`],
+].map(([k,v,d]) => `<div class="card tile"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join('');
+
+// tooltip
+const tip = document.getElementById('tip');
+function hover(el, text) {
+  el.addEventListener('mousemove', e => {
+    tip.textContent = text; tip.style.opacity = 1;
+    tip.style.left = Math.min(e.clientX + 12, innerWidth - tip.offsetWidth - 8) + 'px';
+    tip.style.top = (e.clientY - 34) + 'px';
+  });
+  el.addEventListener('mouseleave', () => tip.style.opacity = 0);
+}
+
+// by category — horizontal bars (คลิกเพื่อกรองตาราง)
+const catMax = cats[0][1];
+document.getElementById('bycat').innerHTML = cats.map(([c,v]) =>
+  `<div class="brow" data-c="${c}"><div class="lbl" title="${c}">${c}</div><div class="track"><div class="bar" style="width:${(v/catMax*100).toFixed(2)}%"></div></div><div class="val">฿${fmt(v)}</div></div>`
+).join('');
+document.querySelectorAll('#bycat .brow').forEach((el,i) => {
+  hover(el, `${cats[i][0]} · ฿${fmt(cats[i][1])} · คลิกเพื่อกรอง`);
+  el.addEventListener('click', () => { catFilter = catFilter === el.dataset.c ? '' : el.dataset.c; render(); });
+});
+
+// by day — columns over the full date range
+const d0 = new Date(dates[0]), d1 = new Date(dates[dates.length-1]);
+const days = [];
+for (let d = new Date(d0); d <= d1; d.setDate(d.getDate() + 1)) days.push(d.toISOString().slice(0,10));
+const dayMax = Math.max(...days.map(d => (byDay[d] || {sum:0}).sum));
+document.getElementById('bydayCols').innerHTML = days.map(d => {
+  const v = byDay[d] || { sum: 0, n: 0 };
+  const label = v.sum === dayMax ? `<div class="top">฿${fmt(v.sum)}</div>` : '';
+  return `<div class="day" data-d="${d}">${label}<div class="col ${v.sum ? '' : 'zero'}" style="height:${dayMax ? (v.sum/dayMax*100).toFixed(2) : 0}%"></div></div>`;
+}).join('');
+document.getElementById('bydayLabs').innerHTML = days.map(d => `<span>${thDate(d)}</span>`).join('');
+document.querySelectorAll('#bydayCols .day').forEach(el => {
+  const d = el.dataset.d, v = byDay[d] || { sum: 0, n: 0 };
+  hover(el, `${thDate(d)} · ฿${fmt(v.sum)} · ${v.n} รายการ`);
+});
+
+// ---- ตาราง: sort ได้ทุกคอลัมน์ + กรองตามหมวด ----
+let sortKey = 'dt', sortDir = -1, catFilter = '';
+const getVal = {
+  dt: r => r.date + ' ' + r.time, doc: r => r.doc_type, cat: r => r.category,
+  rcpt: r => r.recipient_name, bank: r => r.recipient_bank, snd: r => r.sender_name, amt: r => r.amount_thb,
+};
+const catSel = document.getElementById('catSel');
+catSel.innerHTML = '<option value="">ทุกหมวด</option>' + cats.map(([c]) => `<option value="${c}">${c}</option>`).join('');
+catSel.addEventListener('change', () => { catFilter = catSel.value; render(); });
+document.querySelectorAll('th.sortable').forEach(th => th.addEventListener('click', () => {
+  const k = th.dataset.k;
+  if (sortKey === k) sortDir *= -1; else { sortKey = k; sortDir = (k === 'amt' || k === 'dt') ? -1 : 1; }
+  render();
+}));
+
+function render() {
+  const rows = (catFilter ? S.filter(r => r.category === catFilter) : [...S]).sort((a,b) => {
+    const x = getVal[sortKey](a), y = getVal[sortKey](b);
+    return (typeof x === 'number' ? x - y : String(x).localeCompare(String(y), 'th')) * sortDir;
+  });
+  document.getElementById('rows').innerHTML = rows.map(r => `<tr>
+    <td class="nowrap">${thDate(r.date)}</td><td>${r.time}</td><td class="nowrap">${r.doc_type.replace('สำเร็จ','')}</td>
+    <td><span class="chip ${r.category === 'ovh' ? 'ovh' : ''}">${r.category}</span></td>
+    <td>${r.recipient_name}</td><td>${r.recipient_bank}</td><td class="nowrap">${r.sender_name}</td>
+    <td class="num">${fmt(r.amount_thb)}</td><td class="nowrap" style="color:var(--muted)">${r.ref}</td>
+    <td>${r.file ? `<a href="slips/${r.file}" target="_blank">ดูสลิป</a>` : '<span style="color:var(--muted)">—</span>'}</td>
+  </tr>`).join('');
+  document.getElementById('count').textContent = catFilter ? `${rows.length}/${S.length}` : S.length;
+  document.getElementById('totLbl').textContent = catFilter ? `รวมเฉพาะ "${catFilter}"` : 'รวม';
+  document.getElementById('totRow').textContent = fmt(rows.reduce((a,r) => a + r.amount_thb, 0));
+  document.querySelectorAll('th.sortable').forEach(th =>
+    th.querySelector('.arr').textContent = th.dataset.k === sortKey ? (sortDir === 1 ? ' ▲' : ' ▼') : '');
+  document.querySelectorAll('#bycat .brow').forEach(el => el.classList.toggle('active', el.dataset.c === catFilter));
+  catSel.value = catFilter;
+}
+render();
+</script>
+</body>
+</html>
